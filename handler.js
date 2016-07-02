@@ -10,6 +10,9 @@ var http = require('http');
 module.exports.slack = function (event, context, cb) {
   var request = helper.processRequest(event);
 
+  // Store command into the history
+  helper.storeCommand(request);
+
   // Throw the user out if the request is invalid
   if (request === false) cb(null, { errorMessage: 'Invalid request' });
 

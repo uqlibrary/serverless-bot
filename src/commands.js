@@ -1,5 +1,8 @@
 var request = require('request');
 var helper = require('./helper');
+var mathjs = require('mathjs');
+var weather = require('city-weather');
+var async = require('async');
 
 module.exports = {
   /**
@@ -36,16 +39,111 @@ module.exports = {
       }
     );
   },
+  /**
+   * Does math!
+   * @param r
+   * @returns {Promise}
+   */
+  math: function (r) {
+    return new Promise(
+      function (resolve) {
+        resolve({
+          text: mathjs.eval(r.text)
+        });
+      }
+    );
+  },
 
   /**
-   * Shows a simple error message
-   * @param cb
-   * @param message
-   * @returns {*}
+   * Does conversions!
+   * @param r
+   * @returns {Promise}
    */
-  error: function (cb, message) {
-    return cb(null, {
-      errorMessage: message
-    });
+  convert: function (r) {
+    return new Promise(
+      function (resolve, reject) {
+        var result = mathjs.eval(r.text);
+
+        if (result !== false) {
+          resolve({ text: result.toString() });
+        } else {
+          reject({ errorMessage: 'Invalid request' });
+        }
+      }
+    );
+  },
+
+  /**
+   * Gives weather information
+   * @param r
+   * @returns {Promise}
+   */
+  weather: function (r) {
+    return new Promise(
+      function (resolve, reject) {
+        var data = {};
+
+        async.parallel([
+          // Actual temperature
+          function (callback) {
+            weather.getActualTemp(r.text, function (temp) {
+              data.temperature = temp;
+              callback(null, temp);
+            });
+          },
+          // Climate description (e.g. clear skies)
+          function (callback) {
+            weather.getClimateDescription(r.text, function (desc) {
+              data.climate = desc;
+              callback(null, desc);
+            });
+          },
+          // Climate description (e.g. clear skies)
+          function (callback) {
+            weather.getWindSpeed(r.text, function (desc) {
+              data.windSpeed = desc;
+              callback(null, desc);
+            });
+          }
+        ], function () {
+          var emoji =
+            ( data.climate.match( /clear/i ) )? ':sunny:'
+              : ( data.climate.match( /(broken clouds)|(scattered clouds)/i ) )? ':sun_small_cloud:'
+              : ( data.climate.match( /shower rain/i ) )? ':rain_cloud:'
+              : ( data.climate.match( /clouds/i ) )? ':partly_sunny:'
+              : ( data.climate.match( /snow/i ) )? ':snow_cloud:'
+              : ( data.climate.match( /rain/i ) )? ':rain_cloud:'
+              : ( data.climate.match( /mist/i ) )? ':foggy:'
+              : '';
+
+          resolve({
+            text: 'Today in ' + helper.ucFirst(r.text) + ': ' + emoji + ' ' + data.climate + ' and '
+              + data.temperature + '°C, wind: ' + data.windSpeed + 'm/s'
+          });
+        });
+      }
+
+    )
+  },
+  /**
+   * Shows basic stats for this bot
+   * @param r
+   * @returns {Promise}
+   */
+  stats: function (r) {
+    return new Promise(
+      function(resolve) {
+        return { text: 'Temporarily disabled until DB access is restored.' };
+
+        // var conn = helper.database();
+        // conn.query('SELECT count(id) as nr FROM `command_history`', function (err, rows, fields) {
+        //   if (err) reject({});
+        //
+        //   resolve({
+        //     text: 'I have processed a total of ' + rows[0].nr + ' commands'
+        //   });
+        // });
+      }
+    );
   }
 };
