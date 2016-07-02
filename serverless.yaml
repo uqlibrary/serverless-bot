@@ -1,0 +1,9 @@
+service: serverless-bot
+provider: aws
+functions:
+    slack:
+        handler: handler.slack
+        events:
+            - http:
+                path: slack
+                method: post
